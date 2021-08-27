@@ -15,6 +15,7 @@ const getAllUsers = (req, res) => {
 
 const getUser = (req, res) => {
   User.findById(req.params.userId)
+    .orFail(new Error("NotValidId"))
     .then((user) => res.send({ data: user }))
     .catch((err) => {
       if (err.name === "CastError") {
@@ -51,6 +52,7 @@ const updateAvatar = (req, res) => {
       new: true,
     },
   )
+    .orFail(new Error("NotValidId"))
     .then((user) => res.send({ data: user }))
     .catch((err) => {
       if (err.name === "ValidationError") {
@@ -76,6 +78,7 @@ const updateUserInfo = (req, res) => {
       runValidators: true,
     },
   )
+    .orFail(new Error("NotValidId"))
     .then((user) => res.send({ data: user }))
     .catch((err) => {
       if (err.name === "ValidationError") {
