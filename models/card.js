@@ -8,10 +8,6 @@ const cardSchema = new mongoose.Schema({
     maxlength: 30,
     required: true,
   },
-  // link: {
-  //   type: String,
-  //   required: true,
-  // },
   link: {
     type: String,
     validate: {
