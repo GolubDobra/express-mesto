@@ -9,11 +9,7 @@ const ErrorCodes = {
 const getAllCards = (req, res) => {
   Card.find({})
     .then((cards) => res.send({ data: cards }))
-    .catch((err) => {
-      if (err.name === "CastError") {
-        res.status(ErrorCodes.BAD_REQUEST).send({ message: `Некорректные данные при создании карточки: ${err}!` });
-        return;
-      }
+    .catch(() => {
       res.status(ErrorCodes.DEFAULT).send({ message: "Ошибка на сервере!" });
     });
 };
@@ -34,15 +30,11 @@ const createCard = (req, res) => {
 
 const deleteCard = (req, res) => {
   Card.findByIdAndRemove(req.params.cardId)
-    .orFail(new Error("NotValidId"))
+    .orFail(new Error("CastError"))
     .then((card) => res.send({ data: card }))
     .catch((err) => {
       if (err.name === "CastError") {
         res.status(ErrorCodes.BAD_REQUEST).send({ message: "Некорректный запрос" });
-        return;
-      }
-      if (err.message === "NotFound") {
-        res.status(ErrorCodes.NOT_FOUND).send({ message: "Запрашиваемый пользователь не найден!" });
         return;
       }
       res.status(ErrorCodes.DEFAULT).send({ message: "Ошибка на сервере!" });
@@ -58,10 +50,6 @@ const likeCard = (req, res) => {
     .catch((err) => {
       if (err.name === "CastError") {
         res.status(ErrorCodes.BAD_REQUEST).send({ message: "Некорректные данные для постановки лайка!" });
-        return;
-      }
-      if (err.message === "NotFound") {
-        res.status(ErrorCodes.NOT_FOUND).send({ message: "Запрашиваемый пользователь не найден!" });
         return;
       }
       res.status(ErrorCodes.DEFAULT).send({ message: "Ошибка на сервере!" });
