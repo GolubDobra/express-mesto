@@ -30,11 +30,15 @@ const createCard = (req, res) => {
 
 const deleteCard = (req, res) => {
   Card.findByIdAndRemove(req.params.cardId)
-    .orFail(new Error("CastError"))
+    .orFail(new Error("Error"))
     .then((card) => res.send({ data: card }))
     .catch((err) => {
       if (err.name === "CastError") {
         res.status(ErrorCodes.BAD_REQUEST).send({ message: "Некорректный запрос" });
+        return;
+      }
+      if (err.message === "Error") {
+        res.status(ErrorCodes.NOT_FOUND).send({ message: "Карточка с указанным идентификаторо не найдена!" });
         return;
       }
       res.status(ErrorCodes.DEFAULT).send({ message: "Ошибка на сервере!" });
@@ -45,11 +49,15 @@ const likeCard = (req, res) => {
   Card.findByIdAndUpdate(req.params.cardId,
     { $addToSet: { likes: req.user._id } },
     { new: true })
-    .orFail(new Error("NotValidId"))
+    .orFail(new Error("Error"))
     .then((card) => res.send({ data: card }))
     .catch((err) => {
       if (err.name === "CastError") {
         res.status(ErrorCodes.BAD_REQUEST).send({ message: "Некорректные данные для постановки лайка!" });
+        return;
+      }
+      if (err.message === "Error") {
+        res.status(ErrorCodes.NOT_FOUND).send({ message: "Карточка с указанным идентификаторо не найдена!" });
         return;
       }
       res.status(ErrorCodes.DEFAULT).send({ message: "Ошибка на сервере!" });
@@ -62,15 +70,15 @@ const dislikeCard = (req, res) => {
     { $pull: { likes: req.user._id } },
     { new: true },
   )
-    .orFail(new Error("NotValidId"))
+    .orFail(new Error("Error"))
     .then((card) => res.send({ data: card }))
     .catch((err) => {
       if (err.name === "CastError") {
-        res.status(ErrorCodes.BAD_REQUEST).send({ message: "Некорректные данные для постановки лайка!" });
+        res.status(ErrorCodes.BAD_REQUEST).send({ message: "Некорректные данные!" });
         return;
       }
-      if (err.message === "NotFound") {
-        res.status(ErrorCodes.NOT_FOUND).send({ message: "Запрашиваемый пользователь не найден!" });
+      if (err.message === "Error") {
+        res.status(ErrorCodes.NOT_FOUND).send({ message: "Карточка с указанным идентификаторо не найдена!" });
         return;
       }
       res.status(ErrorCodes.DEFAULT).send({ message: "Ошибка на сервере!" });
