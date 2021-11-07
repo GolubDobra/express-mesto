@@ -1,101 +1,131 @@
+const bcrypt = require("bcrypt");
 const User = require("../models/user");
+const Error400 = require("../errors/Error400");
+const Error404 = require("../errors/Error404");
+const Error409 = require("../errors/Error409");
+const Error500 = require("../errors/Error500");
 
-const ErrorCodes = {
-  NOT_FOUND: 404,
-  BAD_REQUEST: 400,
-  DEFAULT: 500,
-};
-
-const getAllUsers = (req, res) => {
+const getAllUsers = (req, res, next) => {
   User.find({})
     .then((users) => res.send({ data: users }))
-    .catch(() => res.status(ErrorCodes.DEFAULT).send({ message: "Ошибка на сервере!" }));
+    .catch(() => {
+      next(new Error500("Ошибка на сервере!"));
+    });
 };
 
-const getUser = (req, res) => {
+const getUser = (req, res, next) => {
   User.findById(req.params.userId)
-    .orFail(new Error("NotFound"))
+    .orFail(() => {
+      throw (new Error404("Пользователь с указанным идентификатором не найден!"));
+    })
+    .then((user) => {
+      res.status(200).send({ data: user });
+    })
+    .catch((err) => {
+      if (err.message === "CastError") {
+        next(new Error400("Ошибка идентификатора пользователя!"));
+      } else if (err.statusCode === 404) {
+        next(new Error404("Пользователь с указанным идентификатором не найден!"));
+      } else {
+        next(new Error500("Ошибка на сервере!"));
+      }
+    });
+};
+
+const getCurrentUser = (req, res, next) => {
+  User.findById(req.user._id)
+    .orFail(() => {
+      next(new Error404("Пользователь с указанным идентификатором не найден!"));
+    })
+    .then((user) => {
+      res.send({ data: user });
+    })
+    .catch((err) => {
+      if (err.name === "CastError") {
+        next(new Error400("Ошибка идентификатора пользователя!"));
+      } else if (err.statusCode === 404) {
+        next(new Error404("Пользователь с указанным идентификатором не найден!"));
+      } else {
+        next(new Error500("Ошибка на сервере!"));
+      }
+    });
+};
+
+const createUser = (req, res, next) => {
+  const {
+    name, about, avatar, email, password,
+  } = req.body;
+  bcrypt
+    .hash(password, 10)
+    .then((hash) => User.create({
+      name,
+      about,
+      avatar,
+      email,
+      password: hash,
+    }))
+    .then((user) => res.send({
+      _id: user._id,
+      name: user.name,
+      about: user.about,
+      avatar: user.avatar,
+      email: user.email,
+    }))
+    .catch((err) => {
+      if (err.name === "ValidationError") {
+        next(new Error400("Переданы некорректные данные при создании пользователя:"));
+      } else if (err.name === "MongoError" && err.code === 11000) {
+        next(new Error409("Данный пользователь уже зарегистрирован"));
+      } else {
+        next(new Error500("Ошибка на сервере!"));
+      }
+    });
+};
+
+const updateUserInfo = (req, res, next) => {
+  const { name, about } = req.body;
+  const userID = req.user._id;
+  User.findByIdAndUpdate(userID, { name, about }, {
+    new: true,
+    runValidators: true,
+  })
+    .orFail(() => {
+      next(new Error404("Пользователь с указанным идентификатором не найден!"));
+    })
     .then((user) => res.send({ data: user }))
     .catch((err) => {
       if (err.name === "CastError") {
-        return res.status(ErrorCodes.BAD_REQUEST).send({ message: "Ошибка в запросе!" });
+        next(new Error400("Ошибка идентификатора пользователя!"));
+      } else if (err.statusCode === 404) {
+        next(new Error404("Пользователь с указанным идентификатором не найден!"));
+      } else {
+        next(new Error500("Ошибка на сервере!"));
       }
-      if (err.message === "NotFound") {
-        return res.status(ErrorCodes.NOT_FOUND).send({ message: "Запрашиваемый по данному идентификатору пользователь не найден!" });
-      }
-      return res.status(ErrorCodes.DEFAULT).send({ message: "Ошибка на сервере!" });
     });
 };
 
-const createUser = (req, res) => {
-  const { name, about, avatar } = req.body;
-  User.create({ name, about, avatar })
-    .then((user) => res.send(user))
-    .catch((err) => {
-      if (err.name === "ValidationError") {
-        res.status(ErrorCodes.BAD_REQUEST).send({ message: `Некорректные данные при создании пользователя: ${err}!` });
-        return;
-      }
-      res.status(ErrorCodes.DEFAULT).send({ message: "Ошибка на сервере!" });
-    });
-};
-
-const updateAvatar = (req, res) => {
+const updateAvatar = (req, res, next) => {
   const { avatar } = req.body;
   const userID = req.user._id;
-  User.findByIdAndUpdate(
-    userID,
-    { avatar },
-    {
-      runValidators: true,
-      new: true,
-    },
-  )
-    .orFail(new Error("Error"))
+  User.findByIdAndUpdate(userID, { avatar }, {
+    runValidators: true,
+    new: true,
+  })
+    .orFail(() => {
+      next(new Error404("Пользователь с указанным идентификатором не найден!"));
+    })
     .then((user) => res.send({ data: user }))
     .catch((err) => {
-      if (err.name === "ValidationError") {
-        res.status(ErrorCodes.BAD_REQUEST).send({ message: `Некорректные данные при обновлении аватара: ${err}!` });
-        return;
+      if (err.name === "CastError") {
+        next(new Error400("Ошибка идентификатора пользователя!"));
+      } else if (err.statusCode === 404) {
+        next(new Error404("Пользователь с указанным идентификатором не найден!"));
+      } else {
+        next(new Error500("Ошибка на сервере!"));
       }
-      if (err.message === "Error") {
-        res.status(ErrorCodes.NOT_FOUND).send({ message: "Запрашиваемый по данному идентификатору пользователь не найден!" });
-        return;
-      }
-      res.status(ErrorCodes.DEFAULT).send({ message: "Ошибка на сервере!" });
-    });
-};
-
-const updateUserInfo = (req, res) => {
-  const { name, about } = req.body;
-  const userID = req.user._id;
-  User.findByIdAndUpdate(
-    userID,
-    { name, about },
-    {
-      new: true,
-      runValidators: true,
-    },
-  )
-    .orFail(new Error("Error"))
-    .then((user) => res.send({ data: user }))
-    .catch((err) => {
-      if (err.name === "ValidationError") {
-        res.status(ErrorCodes.BAD_REQUEST).send({ message: `Некорректные данные при обновлении профиля: ${err}!` });
-        return;
-      }
-      if (err.message === "Error") {
-        res.status(ErrorCodes.NOT_FOUND).send({ message: "Запрашиваемый по данному идентификатору пользователь не найден!" });
-        return;
-      }
-      res.status(ErrorCodes.DEFAULT).send({ message: "Ошибка на сервере!" });
     });
 };
 
 module.exports = {
-  getAllUsers,
-  getUser,
-  createUser,
-  updateUserInfo,
-  updateAvatar,
+  getAllUsers, getUser, getCurrentUser, createUser, updateUserInfo, updateAvatar,
 };
