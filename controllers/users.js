@@ -73,9 +73,9 @@ const createUser = (req, res, next) => {
     }))
     .catch((err) => {
       if (err.name === "ValidationError") {
-        next(new Error400("Переданы некорректные данные при создании пользователя:"));
+        next(new Error400("Переданы некорректные данные при создании пользователя!"));
       } else if (err.name === "MongoError" && err.code === 11000) {
-        next(new Error409("Данный пользователь уже зарегистрирован"));
+        next(new Error409("Данный пользователь уже зарегистрирован!"));
       } else {
         next(new Error500("Ошибка на сервере!"));
       }
