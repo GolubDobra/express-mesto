@@ -2,6 +2,7 @@ const express = require("express");
 const mongoose = require("mongoose");
 const { errors, celebrate, Joi } = require("celebrate");
 const { createUser } = require("./controllers/users");
+
 const app = express();
 const errorHandler = require("./middlewares/errorHandler");
 const login = require("./controllers/login");
@@ -10,6 +11,7 @@ const Error404 = require("./errors/Error404");
 const { requestLogger, errorLogger } = require("./middlewares/loggers");
 const usersRoute = require("./routes/users");
 const cardsRoute = require("./routes/cards");
+
 const { PORT = 3000 } = process.env;
 
 mongoose.connect("mongodb://localhost:27017/mestodb", {

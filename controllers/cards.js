@@ -5,32 +5,31 @@ const Error404 = require("../errors/Error404");
 const Error403 = require("../errors/Error403");
 const Error500 = require("../errors/Error500");
 
-const getAllCards = (req, res) => {
+const getAllCards = (req, res, next) => {
   Card.find({})
     .then((cards) => res.send({ data: cards }))
     .catch(() => {
-      res.status(new Error500("Ошибка на сервере!"));
+      next(new Error500("Ошибка на сервере!"));
     });
 };
 
-const createCard = (req, res) => {
+const createCard = (req, res, next) => {
   const { name, link } = req.body;
   const owner = req.user._id;
   Card.create({ name, link, owner })
     .then((card) => res.send({ data: card }))
     .catch((err) => {
       if (err.name === "ValidationError") {
-        res.status(new Error400(`Некорректные данные при создании карточки: ${err}!`));
-        return;
+        next(new Error400(`Некорректные данные при создании карточки: ${err}!`));
       }
-      res.status(new Error500("Ошибка на сервере!"));
+      next(new Error500("Ошибка на сервере!"));
     });
 };
 
 const deleteCard = (req, res, next) => {
   Card.findByIdAndRemove(req.params.cardId)
     .orFail(() => {
-      throw new Error404("Карточка с указанным идентификатором не найдена");
+      throw new Error404("Карточка с указанным идентификатором не найдена!");
     })
     .then((card) => {
       if (req.user._id !== card.owner.toString()) {
@@ -42,54 +41,52 @@ const deleteCard = (req, res, next) => {
     })
     .catch((err) => {
       if (err.name === "CastError") {
-        res.status(new Error400("Некорректный запрос"));
-        return;
+        next(new Error400("Некорректный запрос"));
       }
-      if (err.message === "Error") {
-        res.status(new Error404("Карточка с указанным идентификаторо не найдена!"));
-        return;
+      if (err.statusCode === 404) {
+        next(new Error404("Карточка с указанным идентификаторо не найдена!"));
       }
-      res.status(new Error500("Ошибка на сервере!"));
+      next(new Error500("Ошибка на сервере!"));
     });
 };
 
-const likeCard = (req, res) => {
+const likeCard = (req, res, next) => {
   Card.findByIdAndUpdate(req.params.cardId,
     { $addToSet: { likes: req.user._id } },
     { new: true })
-    .orFail(new Error("Error"))
+    .orFail(() => {
+      throw new Error404("Карточка с указанным идентификатором не найдена!");
+    })
     .then((card) => res.send({ data: card }))
     .catch((err) => {
       if (err.name === "CastError") {
-        res.status(new Error400("Некорректные данные для постановки лайка!"));
-        return;
+        next(new Error400("Некорректные данные для постановки лайка!"));
       }
-      if (err.message === "Error") {
-        res.status(new Error404("Карточка с указанным идентификаторо не найдена!"));
-        return;
+      if (err.statusCode === 404) {
+        next(new Error404("Карточка с указанным идентификатором не найдена!"));
       }
-      res.status(new Error500("Ошибка на сервере!"));
+      next(new Error500("Ошибка на сервере!"));
     });
 };
 
-const dislikeCard = (req, res) => {
+const dislikeCard = (req, res, next) => {
   Card.findByIdAndUpdate(
     req.params.cardId,
     { $pull: { likes: req.user._id } },
     { new: true },
   )
-    .orFail(new Error("Error"))
+    .orFail(() => {
+      throw new Error404("Карточка с указанным идентификатором не найдена!");
+    })
     .then((card) => res.send({ data: card }))
     .catch((err) => {
       if (err.name === "CastError") {
-        res.status(new Error400("Некорректные данные!"));
-        return;
+        next(new Error400("Некорректные данные!"));
       }
-      if (err.message === "Error") {
-        res.status(new Error404("Карточка с указанным идентификаторо не найдена!"));
-        return;
+      if (err.statusCode === 404) {
+        next(new Error404("Карточка с указанным идентификаторо не найдена!"));
       }
-      res.status(new Error500("Ошибка на сервере!"));
+      next(new Error500("Ошибка на сервере!"));
     });
 };
 
